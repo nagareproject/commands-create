@@ -22,8 +22,8 @@ class Templates(plugins.Plugins):
     def __init__(self):
         super(Templates, self).__init__({})
 
-    def load_activated_plugins(self, entries, activations=None):
-        templates = super(Templates, self).load_activated_plugins(entries, activations)
+    def load_activated_plugins(self, activations=None):
+        templates = super(Templates, self).load_activated_plugins(activations)
 
         aliases = []
         for entry, template in templates:
