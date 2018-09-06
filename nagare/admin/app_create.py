@@ -8,10 +8,14 @@
 # --
 
 import os
-import urlparse
 from copy import copy
 
-from nagare.admin import command
+try:
+    import urlparse
+except ImportError:
+    import urllib.parse as urlparse
+
+from nagare.admin import admin
 from nagare.services import plugins
 from cookiecutter import main, exceptions, log
 
@@ -32,10 +36,10 @@ class Templates(plugins.Plugins):
                 entry.name = name
                 aliases.append((entry, template))
 
-        return sorted(templates + aliases, key=lambda (entry, plugin): self.load_order(plugin))
+        return sorted(templates + aliases, key=lambda template: self.load_order(template[1]))
 
 
-class Create(command.Command):
+class Create(admin.Command):
     DESC = 'Create an application structure'
     WITH_CONFIG_FILENAME = False
 
@@ -62,6 +66,11 @@ class Create(command.Command):
 
     def list(self, template, **config):
         templates = Templates()
+
+        if not templates:
+            print('No registered templates')
+            return 0
+
         default = templates.pop('default', None)
 
         if template and (template in templates):
@@ -69,13 +78,13 @@ class Create(command.Command):
 
         padding = len(max(templates, key=len))
 
-        print 'Available templates:'
+        print('Available templates:')
         for name in sorted(templates):
-            print ' - %s:%s' % (name.ljust(padding), templates[name].DESC)
+            print(' - %s:%s' % (name.ljust(padding), templates[name].DESC))
 
         if default is not None:
-            print
-            print ' * default:', default.DESC
+            print('')
+            print(' * default: ' + default.DESC)
 
         return 0
 
@@ -86,8 +95,11 @@ class Create(command.Command):
         if not url.scheme:
             if (os.sep not in template) and not os.path.exists(template):
                 templates = Templates()
-                template = templates[template].path
+                if template not in templates:
+                    print("Template '%s' not found" % template)
+                    return 1
 
+                template = templates[template].path
                 if path:
                     template = os.path.join(template, path)
 
@@ -110,7 +122,7 @@ class Create(command.Command):
             status = (self.list if list else self.create)(**config)
         except Exception as e:
             if e.args:
-                print e.args[0]
+                print(e.args[0])
             status = 1
 
         return status

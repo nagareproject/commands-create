@@ -32,8 +32,11 @@ setup(
     zip_safe=False,
     setup_requires=['setuptools_scm'],
     use_scm_version=True,
-    install_requires=('cookiecutter', 'nagare-services', 'nagare-server'),
+    install_requires=('cookiecutter', 'nagare-services', 'nagare-commands-base'),
     entry_points='''
+        [nagare.commands]
+        app = nagare.admin.admin:Commands
+
         [nagare.commands.app]
         create = nagare.admin.app_create:Create
     '''
