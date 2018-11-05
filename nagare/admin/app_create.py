@@ -8,6 +8,7 @@
 # --
 
 import os
+import tempfile
 from copy import copy
 
 try:
@@ -15,6 +16,8 @@ try:
 except ImportError:
     import urllib.parse as urlparse
 
+import yaml
+import configobj
 from nagare.admin import admin
 from nagare.services import plugins
 from cookiecutter import main, exceptions, log
@@ -48,7 +51,6 @@ class Create(admin.Command):
         parser.add_argument('template', default='default', nargs='?', help='template to use')
         parser.add_argument('path', default='', nargs='?', help='path into the template directory')
 
-        parser.add_argument('-c', '--config-file', help='User configuration file path')
         parser.add_argument('--no-input', action='store_true', help="don't prompt the user; use default settings")
         parser.add_argument('--checkout', help='the branch, tag or commit ID to checkout after clone')
         parser.add_argument('-v', '--verbose', action='store_true', help='print debug information')
@@ -105,15 +107,37 @@ class Create(admin.Command):
 
         log.configure_logger('DEBUG' if verbose else 'INFO')
 
-        try:
-            main.cookiecutter(template, overwrite_if_exists=overwrite, **config)
-        except exceptions.RepositoryNotFound as e:
-            if not url.scheme or not path:
-                raise
+        def remove_empty(d):
+            return {k: remove_empty(v) for k, v in d.items() if remove_empty(v)} if isinstance(d, dict) else d
 
-            repo_dir = e.args[0].splitlines()[-1]
-            template = os.path.basename(repo_dir)
-            main.cookiecutter(os.path.join(template, path), overwrite_if_exists=overwrite, **config)
+        with tempfile.NamedTemporaryFile() as cc_yaml_config:
+            has_user_data_file, user_data_file = self.get_user_data_file()
+
+            cc_config = configobj.ConfigObj(user_data_file).dict().get('cookiecutter', {}) if has_user_data_file else {}
+            cc_config = remove_empty(cc_config)
+
+            cc_yaml_config.write(yaml.dump(cc_config, default_flow_style=False).encode('utf-8'))
+            cc_yaml_config.flush()
+
+            cc_yaml_config_name = cc_yaml_config.name if cc_config else None
+
+            try:
+                main.cookiecutter(
+                    template,
+                    overwrite_if_exists=overwrite, config_file=cc_yaml_config_name,
+                    **config
+                )
+            except exceptions.RepositoryNotFound as e:
+                if not url.scheme or not path:
+                    raise
+
+                repo_dir = e.args[0].splitlines()[-1]
+                template = os.path.basename(repo_dir)
+                main.cookiecutter(
+                    os.path.join(template, path),
+                    overwrite_if_exists=overwrite, config_file=cc_yaml_config_name,
+                    **config
+                )
 
         return 0
 
