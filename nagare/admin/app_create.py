@@ -8,7 +8,9 @@
 # --
 
 import os
+import logging
 import tempfile
+import subprocess
 from copy import copy
 
 try:
@@ -20,7 +22,9 @@ import yaml
 import configobj
 from nagare.admin import admin
 from nagare.services import plugins
-from cookiecutter import main, exceptions, log
+from cookiecutter import main, repository, exceptions, log
+
+NAGARE_TEMPLATES_REPOSITORY = 'https://github.com/nagareproject/nagare-templates.git#{0}'
 
 
 class Templates(plugins.Plugins):
@@ -49,7 +53,6 @@ class Create(admin.Command):
     def set_arguments(self, parser):
         parser.add_argument('-l', '--list', action='store_true', help='list the available templates')
         parser.add_argument('template', default='default', nargs='?', help='template to use')
-        parser.add_argument('path', default='', nargs='?', help='path into the template directory')
 
         parser.add_argument('--no-input', action='store_true', help="don't prompt the user; use default settings")
         parser.add_argument('--checkout', help='the branch, tag or commit ID to checkout after clone')
@@ -90,22 +93,13 @@ class Create(admin.Command):
 
         return 0
 
-    def create(self, template, path, verbose, overwrite, **config):
-        path = path.lstrip(os.sep)
-        url = urlparse.urlsplit(template)
+    def create(self, template, verbose, overwrite, **config):
+        if verbose:
+            log.configure_logger('DEBUG')
 
-        if not url.scheme:
-            if (os.sep not in template) and not os.path.exists(template):
-                templates = Templates()
-                if template not in templates:
-                    print("Template '%s' not found" % template)
-                    return 1
-
-                template = templates[template].path
-                if path:
-                    template = os.path.join(template, path)
-
-        log.configure_logger('DEBUG' if verbose else 'INFO')
+        if not self.logger.handlers:
+            self.logger.addHandler(logging.StreamHandler())
+        self.logger.setLevel(logging.DEBUG)
 
         def remove_empty(d):
             return {k: remove_empty(v) for k, v in d.items() if remove_empty(v)} if isinstance(d, dict) else d
@@ -115,11 +109,36 @@ class Create(admin.Command):
 
             cc_config = configobj.ConfigObj(user_data_file).dict().get('cookiecutter', {}) if has_user_data_file else {}
             cc_config = remove_empty(cc_config)
-
-            cc_yaml_config.write(yaml.dump(cc_config, default_flow_style=False).encode('utf-8'))
+            cc_config['abbreviations'] = dict(
+                {'nt': NAGARE_TEMPLATES_REPOSITORY},
+                **cc_config.get('abbreviations', {})
+            )
+            cc_yaml_config.write(yaml.dump(
+                cc_config,
+                default_style='"',
+                default_flow_style=False
+            ).encode('utf-8'))
             cc_yaml_config.flush()
 
             cc_yaml_config_name = cc_yaml_config.name if cc_config else None
+            cc_config = main.get_user_config(config_file=cc_yaml_config_name)
+
+            template = repository.expand_abbreviations(template, cc_config['abbreviations'])
+
+            url = list(urlparse.urlsplit(template))
+            if url[0]:
+                url[4], path = '', url[4]
+                path = path.strip('/')
+                template = urlparse.urlunsplit(url)
+            else:
+                path = None
+                if (os.sep not in template) and not os.path.exists(template):
+                    templates = Templates()
+                    if template not in templates:
+                        self.logger.error("Template '%s' not found" % template)
+                        return 1
+
+                    template = templates[template].path
 
             try:
                 main.cookiecutter(
@@ -128,7 +147,7 @@ class Create(admin.Command):
                     **config
                 )
             except exceptions.RepositoryNotFound as e:
-                if not url.scheme or not path:
+                if not path:
                     raise
 
                 repo_dir = e.args[0].splitlines()[-1]
@@ -139,14 +158,21 @@ class Create(admin.Command):
                     **config
                 )
 
-        return 0
+            return 0
 
     def run(self, list, **config):
         try:
             status = (self.list if list else self.create)(**config)
+        except subprocess.CalledProcessError as e:
+            if e.args:
+                self.logger.error('Error [%d] for command: %s' % (e.args[0], ' '.join(e.args[1])))
+                status = e.args[0]
+            else:
+                self.logger.error('Git error')
+                status = 1
         except Exception as e:
             if e.args:
-                print(e.args[0])
+                self.logger.error(e.args[0])
             status = 1
 
         return status
