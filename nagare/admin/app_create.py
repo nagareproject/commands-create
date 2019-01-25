@@ -1,5 +1,5 @@
 # --
-# Copyright (c) 2008-2018 Net-ng.
+# Copyright (c) 2008-2019 Net-ng.
 # All rights reserved.
 #
 # This software is licensed under the BSD License, as described in
@@ -27,6 +27,10 @@ from cookiecutter import main, repository, exceptions, log
 NAGARE_TEMPLATES_REPOSITORY = 'https://github.com/nagareproject/nagare-templates.git#{0}'
 
 
+class Commands(admin.Commands):
+    DESC = 'applications management subcommands'
+
+
 class Templates(plugins.Plugins):
     ENTRY_POINTS = 'nagare.templates'
 
@@ -47,7 +51,7 @@ class Templates(plugins.Plugins):
 
 
 class Create(admin.Command):
-    DESC = 'Create an application structure'
+    DESC = 'create an application structure'
     WITH_CONFIG_FILENAME = False
 
     def set_arguments(self, parser):

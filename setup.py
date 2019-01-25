@@ -1,7 +1,7 @@
 # Encoding: utf-8
 
 # --
-# Copyright (c) 2008-2018 Net-ng.
+# Copyright (c) 2008-2019 Net-ng.
 # All rights reserved.
 #
 # This software is licensed under the BSD License, as described in
@@ -35,7 +35,7 @@ setup(
     install_requires=('pyyaml', 'cookiecutter', 'nagare-services', 'nagare-commands-base'),
     entry_points='''
         [nagare.commands]
-        app = nagare.admin.admin:Commands
+        app = nagare.admin.app_create:Commands
 
         [nagare.commands.app]
         create = nagare.admin.app_create:Create
