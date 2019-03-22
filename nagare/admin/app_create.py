@@ -55,7 +55,7 @@ class Create(admin.Command):
     WITH_CONFIG_FILENAME = False
 
     def set_arguments(self, parser):
-        parser.add_argument('-l', '--list', action='store_true', help='list the available templates')
+        parser.add_argument('-l', '--list', action='store_true', help='list the available templates and abbreviations')
         parser.add_argument('template', default='default', nargs='?', help='template to use')
 
         parser.add_argument('--no-input', action='store_true', help="don't prompt the user; use default settings")
@@ -63,9 +63,9 @@ class Create(admin.Command):
         parser.add_argument('-v', '--verbose', action='store_true', help='print debug information')
         parser.add_argument(
             '-r', '--replay', action='store_true',
-            help='Do not prompt for parameters and only use information entered previously'
+            help='do not prompt for parameters and only use information entered previously'
         )
-        parser.add_argument('-o', '--output-dir', default='', help='directory where to generate the project into')
+        parser.add_argument('-o', '--output-dir', default='', help='directory to generate the project into')
         parser.add_argument(
             '-f', '--overwrite', action='store_true',
             help="overwrite the contents of the output directory if it already exists"
@@ -73,27 +73,52 @@ class Create(admin.Command):
 
         super(Create, self).set_arguments(parser)
 
+    def read_user_config(self):
+        def remove_empty(d):
+            return {k: remove_empty(v) for k, v in d.items() if remove_empty(v)} if isinstance(d, dict) else d
+
+        has_user_data_file, user_data_file = self.get_user_data_file()
+
+        config = configobj.ConfigObj(user_data_file).dict().get('cookiecutter', {}) if has_user_data_file else {}
+        config = remove_empty(config)
+        config['abbreviations'] = dict(
+            {'nt': NAGARE_TEMPLATES_REPOSITORY},
+            **config.get('abbreviations', {})
+        )
+
+        return config
+
     def list(self, template, **config):
-        templates = Templates()
+        print('Available abbreviations:')
 
-        if not templates:
-            print('No registered templates')
-            return 0
+        user_config = self.read_user_config()
+        default_config = main.get_user_config(default_config=True)
+        abbreviations = dict(default_config['abbreviations'], **user_config['abbreviations'])
+        padding = len(max(abbreviations, key=len))
+        for abbr, url in sorted(abbreviations.items()):
+            print(' - {}: {}'.format(abbr.ljust(padding), url))
 
-        default = templates.pop('default', None)
-
-        if template and (template in templates):
-            templates = {template: templates[template]}
-
-        padding = len(max(templates, key=len))
+        print('')
 
         print('Available templates:')
-        for name in sorted(templates):
-            print(' - %s:%s' % (name.ljust(padding), templates[name].DESC))
 
-        if default is not None:
-            print('')
-            print(' * default: ' + default.DESC)
+        templates = Templates()
+        if not templates:
+            print('  <No registered templates>')
+        else:
+            default = templates.pop('default', None)
+
+            if template and (template in templates):
+                templates = {template: templates[template]}
+
+            padding = len(max(templates, key=len))
+
+            for name in sorted(templates):
+                print(' - {}:{}'.format(name.ljust(padding), templates[name].DESC))
+
+            if default is not None:
+                print('')
+                print(' * default: ' + default.DESC)
 
         return 0
 
@@ -105,18 +130,8 @@ class Create(admin.Command):
             self.logger.addHandler(logging.StreamHandler())
         self.logger.setLevel(logging.DEBUG)
 
-        def remove_empty(d):
-            return {k: remove_empty(v) for k, v in d.items() if remove_empty(v)} if isinstance(d, dict) else d
-
         with tempfile.NamedTemporaryFile() as cc_yaml_config:
-            has_user_data_file, user_data_file = self.get_user_data_file()
-
-            cc_config = configobj.ConfigObj(user_data_file).dict().get('cookiecutter', {}) if has_user_data_file else {}
-            cc_config = remove_empty(cc_config)
-            cc_config['abbreviations'] = dict(
-                {'nt': NAGARE_TEMPLATES_REPOSITORY},
-                **cc_config.get('abbreviations', {})
-            )
+            cc_config = self.read_user_config()
             cc_yaml_config.write(yaml.dump(
                 cc_config,
                 default_style='"',
@@ -138,11 +153,10 @@ class Create(admin.Command):
                 path = None
                 if (os.sep not in template) and not os.path.exists(template):
                     templates = Templates()
-                    if template not in templates:
-                        self.logger.error("Template '%s' not found" % template)
-                        return 1
+                    if template in templates:
+                        template = templates[template].location
 
-                    template = templates[template].path
+            print('Generating project from `{}`\n'.format(template))
 
             try:
                 main.cookiecutter(
@@ -169,7 +183,7 @@ class Create(admin.Command):
             status = (self.list if list else self.create)(**config)
         except subprocess.CalledProcessError as e:
             if e.args:
-                self.logger.error('Error [%d] for command: %s' % (e.args[0], ' '.join(e.args[1])))
+                self.logger.error('Error [{}] for command: {}'.format(e.args[0], ' '.join(e.args[1])))
                 status = e.args[0]
             else:
                 self.logger.error('Git error')
