@@ -106,7 +106,9 @@ class Create(admin.Command):
         if not templates:
             print('  <No registered templates>')
         else:
-            default = templates.pop('default', None)
+            default = templates.get('default')
+            if default is not None:
+                del templates['default']
 
             if template and (template in templates):
                 templates = {template: templates[template]}
@@ -114,7 +116,7 @@ class Create(admin.Command):
             padding = len(max(templates, key=len))
 
             for name in sorted(templates):
-                print(' - {}:{}'.format(name.ljust(padding), templates[name].DESC))
+                print(' - {}: {}'.format(name.ljust(padding), templates[name].DESC))
 
             if default is not None:
                 print('')
