@@ -24,7 +24,7 @@ from nagare.admin import admin
 from nagare.services import plugins
 from cookiecutter import main, repository, exceptions, log
 
-NAGARE_TEMPLATES_REPOSITORY = 'https://github.com/nagareproject/nagare-templates.git#{0}'
+NAGARE_TEMPLATES_REPOSITORY = 'https://github.com/nagareproject/templates.git#{0}'
 
 
 class Commands(admin.Commands):
