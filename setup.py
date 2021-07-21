@@ -32,7 +32,7 @@ setup(
     zip_safe=False,
     setup_requires=['setuptools_scm'],
     use_scm_version=True,
-    install_requires=('pyyaml', 'cookiecutter', 'nagare-services', 'nagare-commands-base'),
+    install_requires=('pyyaml', 'cookiecutter', 'nagare-config', 'nagare-services', 'nagare-commands-base'),
     entry_points='''
         [nagare.commands]
         app = nagare.admin.app_create:Commands

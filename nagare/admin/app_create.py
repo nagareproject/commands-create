@@ -11,7 +11,6 @@ import os
 import logging
 import tempfile
 import subprocess
-from copy import copy
 
 try:
     import urlparse
@@ -19,9 +18,9 @@ except ImportError:
     import urllib.parse as urlparse
 
 import yaml
-import configobj
 from nagare.admin import admin
 from nagare.services import plugins
+from nagare.config import config_from_file
 from cookiecutter import main, repository, exceptions, log
 
 NAGARE_TEMPLATES_REPOSITORY = 'https://github.com/nagareproject/templates.git#{0}'
@@ -32,22 +31,23 @@ class Commands(admin.Commands):
 
 
 class Templates(plugins.Plugins):
-    ENTRY_POINTS = 'nagare.templates'
 
-    def __init__(self):
-        super(Templates, self).__init__({})
-
-    def load_activated_plugins(self, activations=None):
-        templates = super(Templates, self).load_activated_plugins(activations)
+    def load_entry_points(self, entry_points, config):
+        templates = super(Templates, self).load_entry_points(entry_points, config)
 
         aliases = []
-        for entry, template in templates:
+        for _, entry, template in templates:
             for name in template.names:
-                entry = copy(entry)
-                entry.name = name
-                aliases.append((entry, template))
+                aliases.append((name, entry, template))
 
-        return sorted(templates + aliases, key=lambda template: self.load_order(template[1]))
+        return sorted(templates + aliases, key=lambda template: self.load_order(template[2]))
+
+
+def find_templates():
+    templates = Templates()
+    entry_points = templates.iter_entry_points(None, 'nagare.templates', {})
+
+    return {name: template for name, entry_points, template in templates.load_entry_points(entry_points, {})}
 
 
 class Create(admin.Command):
@@ -73,13 +73,17 @@ class Create(admin.Command):
 
         super(Create, self).set_arguments(parser)
 
+    def _create_services(cls, config, config_filename, roots=(), global_config=None):
+        return cls.SERVICES_FACTORY()
+
     def read_user_config(self):
+
         def remove_empty(d):
             return {k: remove_empty(v) for k, v in d.items() if remove_empty(v)} if isinstance(d, dict) else d
 
         has_user_data_file, user_data_file = self.get_user_data_file()
 
-        config = configobj.ConfigObj(user_data_file).dict().get('cookiecutter', {}) if has_user_data_file else {}
+        config = config_from_file(user_data_file).get('cookiecutter', {}) if has_user_data_file else {}
         config = remove_empty(config)
         config['abbreviations'] = dict(
             {'nt': NAGARE_TEMPLATES_REPOSITORY},
@@ -102,7 +106,7 @@ class Create(admin.Command):
 
         print('Available templates:')
 
-        templates = Templates()
+        templates = find_templates()
         if not templates:
             print('  <No registered templates>')
         else:
@@ -154,9 +158,9 @@ class Create(admin.Command):
             else:
                 path = None
                 if (os.sep not in template) and not os.path.exists(template):
-                    templates = Templates()
-                    if template in templates:
-                        template = templates[template].location
+                    template = find_templates()[template]
+                    if template is not None:
+                        template = template.get_location()
 
             print('Generating project from `{}`\n'.format(template))
 
