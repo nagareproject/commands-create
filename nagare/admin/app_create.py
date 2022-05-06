@@ -40,7 +40,7 @@ class Templates(plugins.Plugins):
             for name in template.names:
                 aliases.append((name, entry, template))
 
-        return sorted(templates + aliases, key=lambda template: self.load_order(template[2]))
+        return sorted(templates + aliases, key=lambda template: self.load_order(*template))
 
 
 def find_templates():
