@@ -207,9 +207,9 @@ class Upgrade(Command):
             return True
 
         # No local branch found. Check if a remote 'nagare-template' branch exists
-        if self.git(['rev-parse', '-q', '--verify', f'origin/{NAGARE_TEMPLATE_BRANCH}'], directory, False) == 0:
+        if self.git(['rev-parse', '-q', '--verify', 'origin/' + NAGARE_TEMPLATE_BRANCH], directory, False) == 0:
             # Checkout the remote 'nagare-template' branch
-            self.git(['branch', NAGARE_TEMPLATE_BRANCH, f'origin/{NAGARE_TEMPLATE_BRANCH}'], directory)
+            self.git(['branch', NAGARE_TEMPLATE_BRANCH, 'origin/' + NAGARE_TEMPLATE_BRANCH], directory)
         else:
             # No remote 'nagare-template' branch found. Create it from the first commit
             firstref = subprocess.check_output(
