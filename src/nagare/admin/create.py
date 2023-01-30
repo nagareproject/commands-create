@@ -1,5 +1,5 @@
 # --
-# Copyright (c) 2008-2022 Net-ng.
+# Copyright (c) 2008-2023 Net-ng.
 # All rights reserved.
 #
 # This software is licensed under the BSD License, as described in
@@ -7,10 +7,10 @@
 # this distribution.
 # --
 
-import os
 import json
-import shutil
 import logging
+import os
+import shutil
 import subprocess
 
 try:
@@ -18,17 +18,13 @@ try:
 except ImportError:
     import urllib.parse as urlparse
 
+from cookiecutter import main, repository
 from nagare.admin import admin
 from nagare.config import config_from_file
-from cookiecutter import main, repository
 
 NAGARE_TEMPLATE_FILE = '.nagare-template.json'
 NAGARE_TEMPLATE_BRANCH = 'nagare-template'
 NAGARE_TEMPLATES_REPOSITORY = 'https://github.com/nagareproject/templates.git#{0}'
-
-
-class Commands(admin.Commands):
-    DESC = 'applications management subcommands'
 
 
 class Command(admin.Command):
@@ -122,7 +118,7 @@ class Create(Command):
             '-f',
             '--overwrite',
             action='store_true',
-            help="overwrite the contents of the output directory if it already exists",
+            help='overwrite the contents of the output directory if it already exists',
         )
         parser.add_argument('-s', '--skip', default=False, help='skip already existing files')
 
@@ -178,7 +174,7 @@ class Upgrade(Command):
         parser.add_argument('-t', '--template', default=None, help='template to apply')
         parser.add_argument(
             '-n', '--no-merge', action='store_false', dest='merge', help="Don't merge changes to master"
-        ),
+        )
         parser.add_argument(
             '-i',
             '--ignore',
