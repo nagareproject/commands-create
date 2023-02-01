@@ -109,8 +109,7 @@ class Create(Command):
     DESC = 'create an application structure from a template'
 
     def set_arguments(self, parser):
-        parser.add_argument('-l', '--list', action='store_true', help='list available abbreviations')
-        parser.add_argument('template', help='template to apply')
+        parser.add_argument('template', nargs='?', help='template to apply')
 
         parser.add_argument('--no-input', action='store_true', help="don't prompt the user; use default settings")
         parser.add_argument('-o', '--output-dir', default='.', help='directory to generate the project into')
@@ -124,7 +123,7 @@ class Create(Command):
 
         super(Create, self).set_arguments(parser)
 
-    def list(self, **config):
+    def list(self, template, **config):
         abbreviations, _, _ = self.get_templates_config()
         padding = len(max(abbreviations, key=len))
 
@@ -146,12 +145,12 @@ class Create(Command):
 
         return 0
 
-    def run(self, list, **config):
+    def run(self, template, **config):
         if not self.logger.handlers:
             self.logger.addHandler(logging.StreamHandler())
 
         try:
-            status = (self.list if list else self.create)(**config)
+            status = (self.list if not template else self.create)(template, **config)
         except subprocess.CalledProcessError as e:
             if e.args:
                 self.logger.error('Error [{}] for command: {}'.format(e.args[0], ' '.join(e.args[1])))
