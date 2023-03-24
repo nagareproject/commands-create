@@ -52,7 +52,7 @@ class Command(admin.Command):
 
     def get_templates_config(self):
         has_user_data_file, user_data_file = self.get_user_data_file()
-        config = config_from_file(user_data_file)
+        config = config_from_file(user_data_file) if has_user_data_file else {}
         config = config.get('templates', config.get('cookiecutter', {})) if has_user_data_file else {}
 
         templates_config = main.get_user_config(default_config=True)
