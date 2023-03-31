@@ -108,8 +108,16 @@ class Command(admin.Command):
 class Create(Command):
     DESC = 'create an application structure from a template'
 
+    @staticmethod
+    def parameter(parameter):
+        parameter, value = parameter.split('=', 1)
+        return parameter, value
+
     def set_arguments(self, parser):
         parser.add_argument('template', nargs='?', help='template to apply')
+        parser.add_argument(
+            'parameter', nargs='*', metavar='parameter=value', type=self.parameter, help='template parameter'
+        )
 
         parser.add_argument('--no-input', action='store_true', help="don't prompt the user; use default settings")
         parser.add_argument('-o', '--output-dir', default='.', help='directory to generate the project into')
@@ -133,12 +141,14 @@ class Create(Command):
 
         return 0
 
-    def create(self, template, version, no_input, output_dir, overwrite, skip):
+    def create(self, template, version, no_input, output_dir, overwrite, skip, parameter):
         repo_uri, repo_dir, cleanup, default_context = self.determine_repo_dir(template, version, no_input)
 
         print("Generating project from '{}'\n".format(repo_uri))
 
         context = self.generate_context(repo_dir, default_context)
+        context['cookiecutter'].update(dict(parameter))
+
         cookiecutter = main.prompt_for_config(context, no_input)
 
         self.create_project(template, repo_dir, cookiecutter, False, overwrite, skip, output_dir, cleanup)
