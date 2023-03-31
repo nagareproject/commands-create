@@ -66,9 +66,13 @@ class Command(admin.Command):
 
         return abbreviations, templates_config['cookiecutters_dir'], default_context
 
+    def expand_abbreviations(self, template):
+        abbreviations, _, _ = self.get_templates_config()
+        return repository.expand_abbreviations(template, abbreviations)
+
     def determine_repo_dir(self, template, checkout, no_input):
-        abbreviations, cookiecutters_dir, default_context = self.get_templates_config()
-        repo, path = self.split_repo(repository.expand_abbreviations(template, abbreviations))
+        _, cookiecutters_dir, default_context = self.get_templates_config()
+        repo, path = self.split_repo(self.expand_abbreviations(template))
 
         repo_dir, cleanup = main.determine_repo_dir(
             template=repo,
@@ -116,7 +120,11 @@ class Create(Command):
     def set_arguments(self, parser):
         parser.add_argument('template', nargs='?', help='template to apply')
         parser.add_argument(
-            'parameter', nargs='*', metavar='parameter=value', type=self.parameter, help='template parameter'
+            'parameter',
+            nargs='*',
+            metavar='parameter=value',
+            type=None if ' ' in parser.prog else self.parameter,
+            help='template parameter',
         )
 
         parser.add_argument('--no-input', action='store_true', help="don't prompt the user; use default settings")
@@ -131,6 +139,32 @@ class Create(Command):
 
         super(Create, self).set_arguments(parser)
 
+    def _run(self, command_names, template, version, no_input, output_dir, overwrite, skip, parameter, **kw):
+        if template and len(command_names) != 1:
+            args = (
+                (['--version', version] if version else [])
+                + (['--no-input'] if no_input else [])
+                + ['--output-dir', output_dir]
+                + (['--overwrite'] if overwrite else [])
+                + (['--skip'] if skip else [])
+                + self.expand_abbreviations(template).split()
+                + parameter
+            )
+
+            self.execute(args=args)
+        else:
+            return super(Create, self)._run(
+                command_names,
+                template=template,
+                version=version,
+                no_input=no_input,
+                output_dir=output_dir,
+                overwrite=overwrite,
+                skip=skip,
+                parameters=parameter,
+                **kw,
+            )
+
     def list(self, template, **config):
         abbreviations, _, _ = self.get_templates_config()
         padding = len(max(abbreviations, key=len))
@@ -141,13 +175,13 @@ class Create(Command):
 
         return 0
 
-    def create(self, template, version, no_input, output_dir, overwrite, skip, parameter):
+    def create(self, template, version, no_input, output_dir, overwrite, skip, parameters):
         repo_uri, repo_dir, cleanup, default_context = self.determine_repo_dir(template, version, no_input)
 
         print("Generating project from '{}'\n".format(repo_uri))
 
         context = self.generate_context(repo_dir, default_context)
-        context['cookiecutter'].update(dict(parameter))
+        context['cookiecutter'].update(dict(parameters))
 
         cookiecutter = main.prompt_for_config(context, no_input)
 
