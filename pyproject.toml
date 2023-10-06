@@ -16,24 +16,21 @@ build-backend = 'setuptools.build_meta'
 name = 'nagare-commands-create'
 dynamic = ['version', 'entry-points']
 description = '`nagare create` admin command'
-authors = [
-    {name = 'Net-ng'},
-    {email = 'contact@net-ng.com'}
-]
-license = {file = 'LICENSE.txt'}
+authors = [{ name = 'Net-ng' }, { email = 'contact@net-ng.com' }]
+license = { file = 'LICENSE.txt' }
 requires-python = '>=3.7'
 dependencies = [
     'pyyaml',
     'cookiecutter',
     'nagare-config',
-    'nagare-commands-base'
+    'nagare-commands-base',
 ]
 [project.readme]
 file = 'README.rst'
 content-type = 'text/x-rst'
 
 [tool.setuptools.dynamic]
-entry-points = {file = 'entry-points.txt'}
+entry-points = { file = 'entry-points.txt' }
 
 [project.optional-dependencies]
 dev = [
@@ -44,7 +41,7 @@ dev = [
     'ruff',
     'pytest',
     'build',
-    'twine'
+    'twine',
 ]
 
 [project.urls]
@@ -62,8 +59,25 @@ target-version = ['py38']
 skip-string-normalization = true
 
 [tool.ruff]
-select = ['C4', 'COM', 'D', 'E', 'ERA', 'F', 'I', 'ISC', 'INP', 'PIE', 'Q', 'S', 'SIM', 'TID', 'W', 'YTT']
-ignore = ['COM812', 'D10']
+select = [
+    'C4',
+    'COM',
+    'D',
+    'E',
+    'ERA',
+    'F',
+    'I',
+    'ISC',
+    'INP',
+    'PIE',
+    'Q',
+    'S',
+    'SIM',
+    'TID',
+    'W',
+    'YTT',
+]
+ignore = ['COM812', 'D10', 'S603']
 line-length = 120
 src = ['src']
 

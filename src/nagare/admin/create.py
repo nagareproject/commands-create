@@ -10,6 +10,7 @@
 import json
 import logging
 import os
+import pathlib
 import shutil
 import subprocess
 
@@ -86,24 +87,43 @@ class Command(admin.Command):
         return (repo + '#' + path).strip('#'), repo_dir, cleanup, default_context
 
     @staticmethod
-    def generate_context(repo_dir, default_context):
-        return main.generate_context(
-            context_file=os.path.join(repo_dir, 'cookiecutter.json'), default_context=default_context
-        )
+    def retreive_inherited_context(output_dir):
+        context = {}
+        for parent in reversed(pathlib.Path(output_dir).absolute().parents):
+            template_config_filename = parent / NAGARE_TEMPLATE_FILE
+            if template_config_filename.is_file():
+                with template_config_filename.open() as f:
+                    context.update(json.load(f))
+
+        return context
+
+    @classmethod
+    def generate_context(cls, repo_dir, default_context, output_dir):
+        default_context.update(cls.retreive_inherited_context(output_dir))
+
+        context_file = os.path.join(repo_dir, 'template.json')
+        if not os.path.isfile(context_file):
+            context_file = os.path.join(repo_dir, 'cookiecutter.json')
+
+        context = main.generate_context(context_file=context_file, default_context=default_context)
+        context.setdefault('cookiecutter', context.pop('template', None))
+
+        return default_context, context
 
     @staticmethod
-    def create_project(template, repo_dir, cookiecutter, upgrade, overwrite, skip, output_dir, cleanup):
+    def create_project(template, repo_dir, inherited_context, context, upgrade, overwrite, skip, output_dir, cleanup):
         project_dir = main.generate_files(
             repo_dir=repo_dir,
-            context={'cookiecutter': dict(cookiecutter, _upgrade=upgrade)},
+            context={'cookiecutter': dict(context, _upgrade=upgrade)},
             output_dir=output_dir,
             overwrite_if_exists=overwrite,
             skip_if_file_exists=skip,
         )
 
         with open(os.path.join(project_dir, NAGARE_TEMPLATE_FILE), 'w') as f:
-            cookiecutter['_template'] = template
-            json.dump(cookiecutter, f, indent=4, sort_keys=True)
+            context = {k: context[k] for k in set(context) - set(inherited_context) if not k.startswith('_')}
+            context['_template'] = template
+            json.dump(context, f, indent=4, sort_keys=True)
 
         if cleanup:
             main.rmtree(repo_dir)
@@ -131,11 +151,12 @@ class Create(Command):
         parser.add_argument('-o', '--output-dir', default='.', help='directory to generate the project into')
         parser.add_argument(
             '-f',
-            '--overwrite',
+            '--force',
+            dest='overwrite',
             action='store_true',
             help='overwrite the contents of the output directory if it already exists',
         )
-        parser.add_argument('-s', '--skip', default=False, help='skip already existing files')
+        parser.add_argument('-s', '--skip', action='store_true', help='skip already existing files')
 
         super(Create, self).set_arguments(parser)
 
@@ -180,12 +201,11 @@ class Create(Command):
 
         print("Generating project from '{}'\n".format(repo_uri))
 
-        context = self.generate_context(repo_dir, default_context)
+        inherited_context, context = self.generate_context(repo_dir, default_context, output_dir)
         context['cookiecutter'].update(dict(parameters))
 
-        cookiecutter = main.prompt_for_config(context, no_input)
-
-        self.create_project(template, repo_dir, cookiecutter, False, overwrite, skip, output_dir, cleanup)
+        context = main.prompt_for_config(context, no_input)
+        self.create_project(template, repo_dir, inherited_context, context, False, overwrite, skip, output_dir, cleanup)
 
         return 0
 
@@ -235,6 +255,12 @@ class Upgrade(Command):
             ['git'] + args, stdout=stdout, stderr=stderr, cwd=directory
         )
 
+    @staticmethod
+    def git_with_result(args, directory):
+        return subprocess.check_output(
+            ['git'] + args, universal_newlines=True, stderr=subprocess.DEVNULL, cwd=directory
+        ).strip()
+
     def create_template_branch(self, directory):
         # Check if a local 'nagare-template' branch already exists
         r = self.git(['rev-parse', '-q', '--verify', 'HEAD'], directory, False)
@@ -251,13 +277,7 @@ class Upgrade(Command):
             self.git(['branch', NAGARE_TEMPLATE_BRANCH, 'origin/' + NAGARE_TEMPLATE_BRANCH], directory)
         else:
             # No remote 'nagare-template' branch found. Create it from the first commit
-            firstref = subprocess.check_output(
-                ['git', 'rev-list', '--max-parents=0', '--max-count=1', 'HEAD'],
-                universal_newlines=True,
-                stderr=subprocess.DEVNULL,
-                cwd=directory,
-            ).strip()
-
+            firstref = self.git_with_result(['rev-list', '--max-parents=0', '--max-count=1', 'HEAD'], directory)
             self.git(['branch', NAGARE_TEMPLATE_BRANCH, firstref], directory)
 
         return True
@@ -267,52 +287,81 @@ class Upgrade(Command):
             self.logger.addHandler(logging.StreamHandler())
 
         directory = os.path.abspath(directory)
+
+        if not template and not os.path.isfile(os.path.join(directory, NAGARE_TEMPLATE_FILE)):
+            print('Directory {} not generated from a template'.format(directory))
+            return 1
+
         if not self.create_template_branch(directory):
             return 1
 
-        work_directory = os.path.join(directory, '.git', 'nagare-template')
-        git_directory = os.path.join(work_directory, os.path.basename(directory))
-        self.git(['worktree', 'add', '--no-checkout', git_directory, NAGARE_TEMPLATE_BRANCH], directory)
+        git_directory = self.git_with_result(['rev-parse', '--show-toplevel'], directory)
+        app_name = os.path.basename(git_directory)
+        git_directory = os.path.join(git_directory, '.git', 'nagare-template')
+        relative_directory = self.git_with_result(['rev-parse', '--show-prefix'], directory).strip(os.path.sep)
+        work_directory = os.path.join(git_directory, app_name)
+
+        self.git(
+            ['worktree', 'add']
+            + ([] if relative_directory else ['--no-checkout'])
+            + [work_directory, NAGARE_TEMPLATE_BRANCH],
+            directory,
+        )
 
         try:
             # Generate appli from the template
             # --------------------------------
 
             # Read previous template parameters
+            inherited_context = self.retreive_inherited_context(directory)
+
             with open(os.path.join(directory, NAGARE_TEMPLATE_FILE)) as f:
-                context = json.load(f)
+                context = inherited_context.copy()
+                context.update(json.load(f))
 
             template = template or context['_template']
             repo_uri, repo_dir, cleanup, _ = self.determine_repo_dir(template, version, True)
 
-            print("Upgrading project from '{}'\n".format(repo_uri))
+            if relative_directory:
+                dest_directory = os.path.join(work_directory, relative_directory)
+                shutil.rmtree(dest_directory, True)
+                dest_directory = os.path.dirname(dest_directory)
+            else:
+                dest_directory = git_directory
 
             # Generate a project from the new template version, with the previous project parameters
-            self.create_project(template, repo_dir, context, True, True, False, work_directory, cleanup)
+            self.create_project(
+                template, repo_dir, inherited_context, context, True, True, False, dest_directory, cleanup
+            )
 
             # Commit changes to main branch
             # -----------------------------
 
-            self.git(['add', '-A', '.'], git_directory)
+            self.git(['add', '-A', '.'], work_directory)
 
             if ignore:
-                self.git(['reset', 'HEAD'] + ignore, git_directory)
-                self.git(['checkout'] + ignore, git_directory)
+                self.git(['reset', 'HEAD'] + ignore, work_directory)
+                self.git(['checkout'] + ignore, work_directory)
 
-            if not self.git(['diff-index', '--quiet', 'HEAD', '--'], git_directory, False):
+            if not self.git(['diff-index', '--quiet', 'HEAD', '--'], work_directory, False):
                 print('No changes found')
             else:
-                self.git(['commit', '-nm', 'Update template'], git_directory)
+                self.git(['commit', '-nm', 'Updated from template'], work_directory)
                 if not merge:
                     print(
-                        "Changes in branch '{}' not apply to 'master'. Manual merge needed".format(
+                        "Changes in branch '{}' not applied to 'master'. Manual merge needed".format(
                             NAGARE_TEMPLATE_BRANCH
                         )
                     )
                 else:
-                    self.git(['merge', NAGARE_TEMPLATE_BRANCH], directory, stderr=None, stdout=None)
+                    self.git(
+                        ['merge', '-q', '-nm', 'Updated from template', NAGARE_TEMPLATE_BRANCH],
+                        directory,
+                        stderr=None,
+                        stdout=None,
+                    )
         finally:
-            shutil.rmtree(work_directory)
+            shutil.rmtree(git_directory)
             self.git(['worktree', 'prune'], directory, False)
 
         return 0
