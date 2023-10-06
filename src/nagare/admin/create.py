@@ -28,6 +28,22 @@ NAGARE_TEMPLATE_BRANCH = 'nagare-template'
 NAGARE_TEMPLATES_REPOSITORY = 'https://github.com/nagareproject/templates.git#{0}'
 
 
+def repository_has_template_file(repo_directory, template_file):
+    repo_directory_exists = os.path.isdir(repo_directory)
+    repo_config_exists = os.path.isfile(os.path.join(repo_directory, template_file))
+
+    return repo_directory_exists and repo_config_exists
+
+
+def is_repository(repo_directory):
+    return repository_has_template_file(repo_directory, 'template.json') or repository_has_template_file(
+        repo_directory, 'cookiecutter.json'
+    )
+
+
+repository.repository_has_cookiecutter_json = is_repository
+
+
 class Command(admin.Command):
     WITH_CONFIG_FILENAME = False
 
@@ -112,9 +128,10 @@ class Command(admin.Command):
 
     @staticmethod
     def create_project(template, repo_dir, inherited_context, context, upgrade, overwrite, skip, output_dir, cleanup):
+        context = dict(context, _upgrade=upgrade)
         project_dir = main.generate_files(
             repo_dir=repo_dir,
-            context={'cookiecutter': dict(context, _upgrade=upgrade)},
+            context={'cookiecutter': context, 'context': context},
             output_dir=output_dir,
             overwrite_if_exists=overwrite,
             skip_if_file_exists=skip,
