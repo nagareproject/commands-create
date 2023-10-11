@@ -23,6 +23,7 @@ from cookiecutter import main, repository
 from jinja2 import environment, ext
 from nagare.admin import admin
 from nagare.config import config_from_file
+from slugify.slugify import slugify
 
 NAGARE_TEMPLATE_FILE = '.nagare-template.json'
 NAGARE_TEMPLATE_BRANCH = 'nagare-template'
@@ -53,7 +54,10 @@ class JinjaTemplate(environment.Template):
 class JinjaExtension(ext.Extension):
     def __init__(self, env):
         super().__init__(env)
+
         env.template_class = JinjaTemplate
+        env.filters['snakecase'] = lambda v: slugify(v, separator='_')
+        env.filters['camelcase'] = lambda v: slugify(v).title().replace('-', '')
 
 
 class Command(admin.Command):
