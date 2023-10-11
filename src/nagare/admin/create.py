@@ -20,6 +20,7 @@ except ImportError:
     import urllib.parse as urlparse
 
 from cookiecutter import main, repository
+from jinja2 import environment, ext
 from nagare.admin import admin
 from nagare.config import config_from_file
 
@@ -42,6 +43,17 @@ def is_repository(repo_directory):
 
 
 repository.repository_has_cookiecutter_json = is_repository
+
+
+class JinjaTemplate(environment.Template):
+    def render(self, cookiecutter):
+        return super().render(cookiecutter=cookiecutter, context=cookiecutter)
+
+
+class JinjaExtension(ext.Extension):
+    def __init__(self, env):
+        super().__init__(env)
+        env.template_class = JinjaTemplate
 
 
 class Command(admin.Command):
@@ -123,15 +135,18 @@ class Command(admin.Command):
 
         context = main.generate_context(context_file=context_file, default_context=default_context)
         context.setdefault('cookiecutter', context.pop('template', None))
+        context['cookiecutter']['_extensions'] = ['nagare.admin.create.JinjaExtension']
 
         return default_context, context
 
     @staticmethod
     def create_project(template, repo_dir, inherited_context, context, upgrade, overwrite, skip, output_dir, cleanup):
-        context = dict(context, _upgrade=upgrade)
+        context = dict(
+            context, _upgrade=upgrade, _output_dir=os.path.abspath(output_dir), _cur_dir=os.path.abspath(os.curdir)
+        )
         project_dir = main.generate_files(
             repo_dir=repo_dir,
-            context={'cookiecutter': context, 'context': context},
+            context={'cookiecutter': context},
             output_dir=output_dir,
             overwrite_if_exists=overwrite,
             skip_if_file_exists=skip,
