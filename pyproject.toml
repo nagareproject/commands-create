@@ -53,11 +53,6 @@ Tracker = 'https://github.com/nagareproject/commands-create/issues'
 [tool.distutils.bdist_wheel]
 universal = true
 
-[tool.black]
-line-length = 120
-target-version = ['py38']
-skip-string-normalization = true
-
 [tool.ruff]
 select = [
     'C4',

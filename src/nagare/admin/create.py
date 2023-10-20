@@ -188,7 +188,6 @@ class Create(Command):
         parser.add_argument(
             '-f',
             '--force',
-            dest='overwrite',
             action='store_true',
             help='overwrite the contents of the output directory if it already exists',
         )
@@ -196,13 +195,13 @@ class Create(Command):
 
         super(Create, self).set_arguments(parser)
 
-    def _run(self, command_names, template, version, no_input, output_dir, overwrite, skip, parameter, **kw):
+    def _run(self, command_names, template, version, no_input, output_dir, force, skip, parameter, **kw):
         if template and len(command_names) != 1:
             args = (
                 (['--version', version] if version else [])
                 + (['--no-input'] if no_input else [])
                 + ['--output-dir', output_dir]
-                + (['--overwrite'] if overwrite else [])
+                + (['--force'] if force else [])
                 + (['--skip'] if skip else [])
                 + self.expand_abbreviations(template).split()
                 + parameter
@@ -216,7 +215,7 @@ class Create(Command):
                 version=version,
                 no_input=no_input,
                 output_dir=output_dir,
-                overwrite=overwrite,
+                overwrite=force,
                 skip=skip,
                 parameters=parameter,
                 **kw,
