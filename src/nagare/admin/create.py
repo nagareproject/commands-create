@@ -7,11 +7,11 @@
 # this distribution.
 # --
 
-import json
-import logging
 import os
-import pathlib
+import json
 import shutil
+import logging
+import pathlib
 import subprocess
 
 try:
@@ -19,8 +19,8 @@ try:
 except ImportError:
     import urllib.parse as urlparse
 
+from jinja2 import ext, environment
 from cookiecutter import main, repository
-from jinja2 import environment, ext
 from nagare.admin import admin
 from nagare.config import config_from_file
 from slugify.slugify import slugify
@@ -184,7 +184,10 @@ class Create(Command):
         )
 
         parser.add_argument('--no-input', action='store_true', help="don't prompt the user; use default settings")
-        parser.add_argument('-o', '--output-dir', default='.', help='directory to generate the project into')
+        parser.add_argument(
+            '-o', '--output-dir', default='.', help='directory to generate the project into'
+        ).completer = lambda **kw: ['files#files#_path_files#-/']
+
         parser.add_argument(
             '-f',
             '--force',
@@ -278,9 +281,11 @@ class Upgrade(Command):
             '--ignore',
             action='append',
             help='pattern of files to ignore for changes (can be given multiple times)',
-        )
+        ).completer = lambda *args, **kw: []
 
-        parser.add_argument('directory', help='root project directory')
+        parser.add_argument('directory', help='root project directory').completer = lambda *args, **kw: [
+            'files#files#_path_files#-/'
+        ]
 
         super(Upgrade, self).set_arguments(parser)
 

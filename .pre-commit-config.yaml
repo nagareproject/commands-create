@@ -11,14 +11,14 @@ repos:
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.1.1
+    rev: v0.1.11
     hooks:
       - id: ruff-format
         args: [--check]
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     # Ruff version.
-    rev: "v0.1.1"
+    rev: "v0.1.11"
     hooks:
       - id: ruff
         files: "^src"
