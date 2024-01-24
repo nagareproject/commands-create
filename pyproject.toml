@@ -1,5 +1,5 @@
 # =-
-# (C)opyright Net-ng 2023
+# (C)opyright Net-ng 2008-2024
 #
 # This is Net-ng proprietary source code
 # Any reproduction modification or use without prior written
@@ -49,9 +49,6 @@ Documentation = 'https://nagare.org/doc'
 Source = 'https://github.com/nagareproject/commands-create'
 Tracker = 'https://github.com/nagareproject/commands-create/issues'
 
-[tool.distutils.bdist_wheel]
-universal = true
-
 [tool.ruff]
 select = [
     'C4',
@@ -83,7 +80,6 @@ multiline-quotes = 'double'
 convention = 'google'
 
 [tool.ruff.isort]
-known-third-party = ['nagare']
 length-sort = true
 
 [tool.ruff.format]

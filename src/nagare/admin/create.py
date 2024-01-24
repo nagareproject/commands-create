@@ -1,5 +1,5 @@
 # --
-# Copyright (c) 2008-2023 Net-ng.
+# Copyright (c) 2008-2024 Net-ng.
 # All rights reserved.
 #
 # This software is licensed under the BSD License, as described in
@@ -21,9 +21,10 @@ except ImportError:
 
 from jinja2 import ext, environment
 from cookiecutter import main, repository
+from slugify.slugify import slugify
+
 from nagare.admin import admin
 from nagare.config import config_from_file
-from slugify.slugify import slugify
 
 NAGARE_TEMPLATE_FILE = '.nagare-template.json'
 NAGARE_TEMPLATE_BRANCH = 'nagare-template'
