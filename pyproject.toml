@@ -21,7 +21,7 @@ license = { file = 'LICENSE.txt' }
 requires-python = '>=3.7'
 dependencies = [
     'pyyaml',
-    'python-slugify',
+    'jinja2_strcase',
     'cookiecutter',
     'nagare-config',
     'nagare-commands-base',
@@ -34,14 +34,7 @@ content-type = 'text/x-rst'
 entry-points = { file = 'entry-points.txt' }
 
 [project.optional-dependencies]
-dev = [
-    'sphinx',
-    'sphinx_rtd_theme',
-    'pre-commit',
-    'ruff',
-    'pytest',
-    'twine',
-]
+dev = ['sphinx', 'sphinx_rtd_theme', 'pre-commit', 'ruff', 'pytest', 'twine']
 
 [project.urls]
 Homepage = 'https://nagare.org'
@@ -50,6 +43,11 @@ Source = 'https://github.com/nagareproject/commands-create'
 Tracker = 'https://github.com/nagareproject/commands-create/issues'
 
 [tool.ruff]
+src = ['src']
+line-length = 120
+format.quote-style = 'single'
+
+[tool.ruff.lint]
 select = [
     'C4',
     'COM',
@@ -69,21 +67,9 @@ select = [
     'YTT',
 ]
 ignore = ['COM812', 'D10', 'S603', 'ISC001']
-line-length = 120
-src = ['src']
-
-[tool.ruff.flake8-quotes]
-inline-quotes = 'single'
-multiline-quotes = 'double'
-
-[tool.ruff.pydocstyle]
-convention = 'google'
-
-[tool.ruff.isort]
-length-sort = true
-
-[tool.ruff.format]
-quote-style = 'single'
+isort.length-sort = true
+pydocstyle.convention = 'google'
+flake8-quotes.inline-quotes = 'single'
 
 [tool.pytest.ini_options]
 testpaths = ['tests']

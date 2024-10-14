@@ -21,7 +21,6 @@ except ImportError:
 
 from jinja2 import ext, environment
 from cookiecutter import main, repository
-from slugify.slugify import slugify
 
 from nagare.admin import admin
 from nagare.config import config_from_file
@@ -57,8 +56,9 @@ class JinjaExtension(ext.Extension):
         super().__init__(env)
 
         env.template_class = JinjaTemplate
-        env.filters['snakecase'] = lambda v: slugify(v, separator='_')
-        env.filters['camelcase'] = lambda v: slugify(v).title().replace('-', '')
+
+        env.filters['snakecase'] = env.filters['to_snake']
+        env.filters['camelcase'] = env.filters['to_camel']
 
 
 class Command(admin.Command):
@@ -140,7 +140,10 @@ class Command(admin.Command):
 
         context = main.generate_context(context_file=context_file, default_context=default_context)
         context.setdefault('cookiecutter', context.pop('template', None))
-        context['cookiecutter']['_extensions'] = ['nagare.admin.create.JinjaExtension']
+        context['cookiecutter']['_extensions'] = [
+            'jinja2_strcase.StrcaseExtension',
+            'nagare.admin.create.JinjaExtension',
+        ]
 
         return default_context, context
 
