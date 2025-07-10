@@ -1,5 +1,3 @@
-DOC_OUTPUT_DIR ?= doc/_build
-
 .PHONY: doc tests
 
 clean:

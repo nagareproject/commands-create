@@ -1,10 +1,10 @@
-# =-
-# (C)opyright Net-ng 2008-2024
+# --
+# (C)opyright Net-ng 2008-2025
 #
 # This is Net-ng proprietary source code
 # Any reproduction modification or use without prior written
 # approval from Net-ng is strictly forbidden.
-# =-
+# --
 
 [build-system]
 requires = ['setuptools', 'wheel', 'setuptools_scm']
@@ -14,7 +14,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'nagare-commands-create'
-dynamic = ['version', 'entry-points']
+dynamic = ['version', 'entry-points', 'scripts']
 description = '`nagare create` admin command'
 authors = [{ name = 'Net-ng' }, { email = 'contact@net-ng.com' }]
 license = { file = 'LICENSE.txt' }
